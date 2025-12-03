@@ -1,29 +1,21 @@
--- Настройки цветовой схемы для использования цветов терминала
+-- Настройки цветовой схемы
 
 -- Используем цвета терминала напрямую
 vim.o.termguicolors = true
+vim.o.background = 'dark'
 
--- Определяем цветовую схему терминала и применяем её
-local function setup_terminal_colors()
-    -- Используем встроенную схему default, которая использует цвета терминала
-    -- или определяем схему на основе переменной окружения TERM_THEME
-    local term_theme = os.getenv('TERM_THEME') or 'default'
-    
-    -- Если терминал поддерживает 256 цветов, используем схему default
-    -- которая автоматически адаптируется под цвета терминала
-    vim.cmd('colorscheme default')
-    
-    -- Настраиваем цвета так, чтобы они брались из терминала
-    vim.o.background = 'dark'  -- или 'light', в зависимости от темы терминала
-    
-    -- Используем цвета терминала для основных групп
-    vim.api.nvim_set_hl(0, 'Normal', { bg = 'NONE', fg = 'NONE' })
-    vim.api.nvim_set_hl(0, 'NormalFloat', { bg = 'NONE' })
-    vim.api.nvim_set_hl(0, 'NormalNC', { bg = 'NONE' })
-end
+-- Настройка выделения строки с курсором
+vim.api.nvim_create_autocmd('ColorScheme', {
+	pattern = '*',
+	callback = function()
+		vim.api.nvim_set_hl(0, 'CursorLine', { bg = '#1e1d2e', underline = false })
+		vim.api.nvim_set_hl(0, 'CursorLineNr', { fg = '#a277ff', bg = '#1e1d2e', bold = true })
+	end,
+})
 
--- Применяем настройки при запуске
-setup_terminal_colors()
+-- Применяем настройки сразу
+vim.api.nvim_set_hl(0, 'CursorLine', { bg = '#1e1d2e', underline = false })
+vim.api.nvim_set_hl(0, 'CursorLineNr', { fg = '#a277ff', bg = '#1e1d2e', bold = true })
 
 -- Группы подсветки для TypeScript и JSDoc комментариев
 vim.api.nvim_create_autocmd('ColorScheme', {

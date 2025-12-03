@@ -1,9 +1,9 @@
 return {
     'nvim-treesitter/nvim-treesitter',
-    -- Предотвращаем синхронную установку парсеров при каждом запуске
-    sync_install = false,
     config = function()
         require('nvim-treesitter.configs').setup({
+            -- Предотвращаем синхронную установку парсеров при каждом запуске
+            sync_install = false,
             -- Включение подсветки синтаксиса
             highlight = {
                 enable = true,
@@ -34,7 +34,6 @@ return {
                 enable = true,
             },
             -- Парсеры для языков
-            -- sync_install = false предотвращает синхронную установку при каждом запуске
             ensure_installed = {
                 -- TypeScript и JavaScript
                 'typescript',

@@ -18,6 +18,26 @@ return {
             end,
         }
 
+        -- Кастомные компоненты для кодировки и формата конца строки
+        local function file_encoding()
+            local enc = vim.bo.fileencoding
+            if enc == '' then
+                enc = vim.bo.encoding
+            end
+            return enc ~= '' and enc:upper() or 'UTF-8'
+        end
+
+        local function file_format()
+            local format = vim.bo.fileformat
+            if format == 'dos' then
+                return 'CRLF'
+            elseif format == 'mac' then
+                return 'CR'
+            else
+                return 'LF'
+            end
+        end
+
         -- Конфигурация статус бара
         local config = {
             options = {
@@ -76,10 +96,7 @@ return {
                             newfile = ' 󰎔',
                         },
                         color = { fg = '#61ffca', bg = 'NONE' },
-                        padding = { left = 1, right = 1 },
-                        fmt = function(str)
-                            return '\n' .. str
-                        end,
+                        padding = { left = 6, right = 1 },
                     },
                 },
                 lualine_b = {},
@@ -129,6 +146,18 @@ return {
                         icon_only = false,
                         separator = { left = '', right = '│' },
                         padding = { left = 1, right = 1 },
+                    },
+                    {
+                        file_encoding,
+                        separator = { left = '', right = '│' },
+                        padding = { left = 1, right = 1 },
+                        condition = conditions.hide_in_width,
+                    },
+                    {
+                        file_format,
+                        separator = { left = '', right = '│' },
+                        padding = { left = 1, right = 1 },
+                        condition = conditions.hide_in_width,
                     },
                 },
                 lualine_y = {

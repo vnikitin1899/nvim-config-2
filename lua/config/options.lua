@@ -14,3 +14,24 @@ vim.opt.sidescrolloff = 8
 
 -- Включить tabline для отображения имени файла вверху
 vim.opt.showtabline = 2
+
+-- Включить выделение парных скобок
+vim.opt.showmatch = true
+vim.opt.matchtime = 1
+
+-- Автоматическое сохранение при выходе из Insert режима
+vim.api.nvim_create_autocmd('InsertLeave', {
+    callback = function()
+        local bufname = vim.api.nvim_buf_get_name(0)
+        if vim.bo.modified and not vim.bo.readonly and bufname ~= '' then
+            -- Проверяем, существует ли файл или это новый файл
+            local file_exists = vim.fn.filereadable(bufname) == 1
+            if file_exists then
+                vim.cmd('silent write')
+            else
+                -- Для новых файлов используем принудительное сохранение
+                vim.cmd('silent write!')
+            end
+        end
+    end,
+})

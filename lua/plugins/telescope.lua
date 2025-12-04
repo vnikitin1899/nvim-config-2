@@ -20,6 +20,11 @@ return {
                     '--line-number',
                     '--column',
                     '--smart-case',
+                    '--hidden',
+                },
+                -- Исключаем только .git по умолчанию
+                file_ignore_patterns = {
+                    '^.git/',
                 },
             },
             pickers = {

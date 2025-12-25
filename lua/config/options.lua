@@ -8,9 +8,14 @@ vim.opt.relativenumber = false
 vim.opt.cursorline = true
 vim.opt.cursorlineopt = 'line'
 vim.opt.signcolumn = 'yes'
+vim.opt.clipboard = 'unnamedplus'
 vim.opt.wrap = false
 vim.opt.scrolloff = 8
 vim.opt.sidescrolloff = 8
+vim.opt.autoread = true
+
+-- Прячем стандартную командную строку: её заменит всплывающий cmdline
+vim.opt.cmdheight = 0
 
 -- Включить tabline для отображения имени файла вверху
 vim.opt.showtabline = 2
@@ -34,4 +39,10 @@ vim.api.nvim_create_autocmd('InsertLeave', {
             end
         end
     end,
+})
+
+-- Проверяем изменения файлов на диске и обновляем буфер
+vim.api.nvim_create_autocmd({ 'FocusGained', 'BufEnter' }, {
+    command = 'checktime',
+    desc = 'Следить за изменениями файлов на диске',
 })

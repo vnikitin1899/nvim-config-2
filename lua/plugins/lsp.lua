@@ -18,48 +18,164 @@ return {
             -- Базовые capabilities для LSP
             -- Используем улучшенные capabilities через nvim-cmp
             local capabilities = require('cmp_nvim_lsp').default_capabilities()
+
+            local function list_to_set(list)
+                local set = {}
+                for _, value in ipairs(list) do
+                    set[value] = true
+                end
+                return set
+            end
+
+            local auto_fix_kinds = {
+                'quickfix',
+                'source.fixAll',
+                'source.addMissingImports',
+                'source.addMissingImports.ts',
+                'source.organizeImports',
+                'source.organizeImports.ts',
+            }
+            local auto_fix_kind_set = list_to_set(auto_fix_kinds)
+
+            local auto_import_kinds = {
+                'source.addMissingImports',
+                'source.addMissingImports.ts',
+                'source.organizeImports',
+                'source.organizeImports.ts',
+            }
+            local auto_import_kind_set = list_to_set(auto_import_kinds)
+
+            local function apply_code_action_from_params(bufnr, params, messages, allowed_kind_set)
+                bufnr = bufnr or vim.api.nvim_get_current_buf()
+                local responses = vim.lsp.buf_request_sync(bufnr, 'textDocument/codeAction', params, 2000)
+                if not responses or vim.tbl_isempty(responses) then
+                    if messages and messages.none then
+                        vim.notify(messages.none, vim.log.levels.INFO)
+                    end
+                    return false
+                end
+
+                for client_id, response in pairs(responses) do
+                    local actions = response.result
+                    if actions and #actions > 0 then
+                        local action = actions[1]
+                        if allowed_kind_set then
+                            for _, candidate in ipairs(actions) do
+                                if candidate.kind and allowed_kind_set[candidate.kind] then
+                                    action = candidate
+                                    break
+                                end
+                            end
+                        end
+
+                        local client = vim.lsp.get_client_by_id(client_id)
+                        if client then
+                            if action.edit then
+                                local encoding = client.offset_encoding or 'utf-16'
+                                vim.lsp.util.apply_workspace_edit(action.edit, encoding)
+                            end
+
+                            if action.command then
+                                local command = action.command
+                                if type(command) ~= 'table' then
+                                    command = {
+                                        command = command,
+                                        arguments = action.arguments or {},
+                                    }
+                                end
+                                client.request('workspace/executeCommand', command, function(err)
+                                    if err then
+                                        vim.notify('Ошибка применения code action: ' .. (err.message or tostring(err)), vim.log.levels.ERROR)
+                                    end
+                                end)
+                            end
+
+                            if messages and messages.success then
+                                vim.notify(messages.success, vim.log.levels.INFO)
+                            end
+                            return true
+                        end
+                    end
+                end
+
+                if messages and messages.none then
+                    vim.notify(messages.none, vim.log.levels.INFO)
+                end
+                return false
+            end
+
+            local function run_auto_import(bufnr)
+                bufnr = bufnr or vim.api.nvim_get_current_buf()
+                if vim.tbl_isempty(vim.lsp.get_active_clients({ bufnr = bufnr })) then
+                    vim.notify('Нет активных LSP для текущего буфера', vim.log.levels.WARN)
+                    return false
+                end
+
+                local params = vim.lsp.util.make_range_params()
+                params.context = {
+                    diagnostics = {},
+                    only = auto_import_kinds,
+                }
+
+                return apply_code_action_from_params(bufnr, params, {
+                    success = 'Импорты обновлены',
+                    none = 'Нет действий автоимпорта',
+                }, auto_import_kind_set)
+            end
+
+            vim.api.nvim_create_user_command('LspAutoImport', function()
+                run_auto_import()
+            end, { desc = 'Добавить недостающие импорты через LSP' })
             
 
             -- Функция для установки маппингов
             local function setup_keymaps(bufnr)
                 local opts = { buffer = bufnr, noremap = true, silent = true }
                 
-                -- gd - переход к определению с моментальным переходом к первому результату
+                -- gd - переход к первому определению без выбора из списка
                 vim.keymap.set('n', 'gd', function()
-                    -- Сохраняем оригинальный обработчик
-                    local original_handler = vim.lsp.handlers['textDocument/definition']
-                    
-                    -- Временно переопределяем обработчик для моментального перехода
-                    vim.lsp.handlers['textDocument/definition'] = function(err, result, ctx, config)
+                    local bufnr = vim.api.nvim_get_current_buf()
+                    local params = vim.lsp.util.make_position_params()
+
+                    vim.lsp.buf_request(bufnr, 'textDocument/definition', params, function(err, result)
                         if err then
                             vim.notify('Ошибка: ' .. (err.message or tostring(err)), vim.log.levels.ERROR)
-                            vim.lsp.handlers['textDocument/definition'] = original_handler
                             return
                         end
+
                         if not result or vim.tbl_isempty(result) then
                             vim.notify('Определение не найдено', vim.log.levels.INFO)
-                            vim.lsp.handlers['textDocument/definition'] = original_handler
                             return
                         end
-                        -- Моментальный переход к первому определению
-                        local location = result[1]
+
+                        local location = result
+                        if vim.tbl_islist(result) then
+                            location = result[1]
+                        end
+
+                        if location.targetUri then
+                            location = {
+                                uri = location.targetUri,
+                                range = location.targetSelectionRange or location.targetRange,
+                            }
+                        end
+
                         if location.uri then
                             vim.lsp.util.jump_to_location(location, 'utf-16', false)
+                        else
+                            vim.notify('Не удалось определить позицию определения', vim.log.levels.WARN)
                         end
-                        -- Восстанавливаем обработчик
-                        vim.lsp.handlers['textDocument/definition'] = original_handler
-                    end
-                    
-                    -- Вызываем стандартную функцию
-                    vim.lsp.buf.definition()
+                    end)
                 end, vim.tbl_extend('force', opts, { desc = 'Go to definition' }))
             end
 
             -- Базовые маппинги для LSP
             local on_attach = function(client, bufnr)
-                -- Отключение форматирования через ts_ls (если используется другой форматтер)
-                client.server_capabilities.documentFormattingProvider = false
-                client.server_capabilities.documentRangeFormattingProvider = false
+                -- Отключаем форматирование только для ts_ls (используем внешний форматтер)
+                if client.name == 'ts_ls' then
+                    client.server_capabilities.documentFormattingProvider = false
+                    client.server_capabilities.documentRangeFormattingProvider = false
+                end
 
                 -- Маппинги для работы с диагностикой
                 local opts = { buffer = bufnr, noremap = true, silent = true }
@@ -98,6 +214,22 @@ return {
                 end, vim.tbl_extend('force', opts, { desc = 'Show diagnostic details' }))
                 vim.keymap.set('n', '<leader>rn', vim.lsp.buf.rename, vim.tbl_extend('force', opts, { desc = 'Rename symbol' }))
                 vim.keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, vim.tbl_extend('force', opts, { desc = 'Code action' }))
+
+                -- Автоматическое применение первой доступной правки
+                local function apply_auto_fix()
+                    local params = vim.lsp.util.make_range_params()
+                    params.context = {
+                        diagnostics = vim.diagnostic.get(bufnr, { lnum = params.range.start.line }),
+                        only = auto_fix_kinds,
+                    }
+
+                    apply_code_action_from_params(bufnr, params, {
+                        success = 'Автоисправление применено',
+                        none = 'Нет доступных автоисправлений',
+                    }, auto_fix_kind_set)
+                end
+
+                vim.keymap.set('n', '<leader>fx', apply_auto_fix, vim.tbl_extend('force', opts, { desc = 'Auto fix diagnostic' }))
             end
 
             -- Настройка TypeScript Language Server
@@ -133,6 +265,18 @@ return {
             -- Настройка диагностики с новым способом определения знаков
             -- Настраиваем один раз, до установки обработчика диагностик
             -- Убираем numhl из знаков, так как используем extmarks для подсветки номеров строк
+            local diagnostic_icons = {
+                Error = '󰅚 ',
+                Warn = '󰀪 ',
+                Hint = '󰌶 ',
+                Info = '󰋽 ',
+            }
+
+            for type, icon in pairs(diagnostic_icons) do
+                local hl = 'DiagnosticSign' .. type
+                vim.fn.sign_define(hl, { text = icon, texthl = hl, numhl = hl })
+            end
+
             vim.diagnostic.config({
                 virtual_text = {
                     enabled = true,
@@ -140,12 +284,7 @@ return {
                     prefix = '',
                     suffix = '',
                 },
-                signs = {
-                    Error = { text = '󰅚 ' },
-                    Warn = { text = '󰀪 ' },
-                    Hint = { text = '󰌶 ' },
-                    Info = { text = '󰋽 ' },
-                },
+                signs = true,
                 underline = true,
                 update_in_insert = false,
                 severity_sort = true,

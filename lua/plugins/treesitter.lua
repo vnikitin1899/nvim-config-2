@@ -1,6 +1,6 @@
 return {
     'nvim-treesitter/nvim-treesitter',
-    dependencies = { 'HiPhish/nvim-ts-rainbow2' },
+    dependencies = { 'HiPhish/rainbow-delimiters.nvim' },
     config = function()
         require('nvim-treesitter.configs').setup({
             -- Предотвращаем синхронную установку парсеров при каждом запуске
@@ -33,12 +33,6 @@ return {
             -- Включение индентации на основе деревьев
             indent = {
                 enable = true,
-            },
-            -- Rainbow brackets
-            rainbow = {
-                enable = true,
-                extended_mode = true,
-                max_file_lines = nil,
             },
             -- Парсеры для языков
             ensure_installed = {

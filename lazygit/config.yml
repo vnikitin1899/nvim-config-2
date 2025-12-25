@@ -1,0 +1,11 @@
+gui:
+  showBottomLine: true # оставляем строку подсказок
+  showRandomTip: false # убираем случайные советы, чтобы подсказки не выходили за экран
+  showPanelJumps: false # скрываем клавиши переключения панелей в подсказках
+  language: en # фиксируем английский интерфейс
+  mouseEvents: false # отключаем мышь, чтобы внизу остались только подсказки
+
+git:
+  pagers:
+    - colorArg: always
+      pager: delta --paging=never --line-numbers --file-style=omit --hunk-header-style=omit

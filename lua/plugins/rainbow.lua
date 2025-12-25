@@ -1,8 +1,27 @@
 return {
-    'HiPhish/nvim-ts-rainbow2',
-    dependencies = { 'nvim-treesitter/nvim-treesitter' },
+    "HiPhish/rainbow-delimiters.nvim",
+    dependencies = { "nvim-treesitter/nvim-treesitter" },
     config = function()
-        -- Rainbow brackets настраиваются в treesitter.lua
-        -- Этот файл нужен только для установки плагина
+        local rainbow_delimiters = require("rainbow-delimiters")
+
+        vim.g.rainbow_delimiters = {
+            strategy = {
+                [""] = rainbow_delimiters.strategy["global"],
+                vim = rainbow_delimiters.strategy["local"],
+            },
+            query = {
+                [""] = "rainbow-delimiters",
+                lua = "rainbow-blocks",
+            },
+            highlight = {
+                "RainbowDelimiterRed",
+                "RainbowDelimiterYellow",
+                "RainbowDelimiterBlue",
+                "RainbowDelimiterOrange",
+                "RainbowDelimiterGreen",
+                "RainbowDelimiterViolet",
+                "RainbowDelimiterCyan",
+            },
+        }
     end,
 }
